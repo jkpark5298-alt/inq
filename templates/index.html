@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>에어인천 화물기 모니터링</title>
+    <style>
+        body { font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; line-height: 1.6; color: #333; max-width: 1000px; margin: 0 auto; padding: 20px; background-color: #f8f9fa; }
+        h1 { text-align: center; color: #004b93; border-bottom: 3px solid #004b93; padding-bottom: 10px; }
+        h2 { background: #004b93; color: white; padding: 10px; border-radius: 5px; font-size: 1.1em; margin-top: 30px; }
+        table { width: 100%; border-collapse: collapse; background: white; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); font-size: 0.9em; }
+        th, td { border: 1px solid #dee2e6; padding: 10px; text-align: center; }
+        th { background-color: #e9ecef; font-weight: bold; }
+        tr:nth-child(even) { background-color: #fcfcfc; }
+        tr:hover { background-color: #f1f4f9; }
+        .status-on { color: #28a745; font-weight: bold; }
+        .flight-id { font-weight: bold; color: #004b93; }
+        .no-data { padding: 30px; color: #666; }
+        @media (max-width: 600px) {
+            table { font-size: 0.8em; }
+            th, td { padding: 5px; }
+        }
+    </style>
+</head>
+<body>
+    <h1>✈️ 에어인천 화물기 운항 현황</h1>
+    
+    <h2>📦 도착 현황 (Arrivals)</h2>
+    <table>
+        <thead>
+            <tr><th>편명</th><th>출발지</th><th>예정시간</th><th>변경시간</th><th>현황</th></tr>
+        </thead>
+        <tbody>
+            {% for f in arrivals %}
+            <tr>
+                <td class="flight-id">{{f.flightId}}</td>
+                <td>{{f.elapsetime}}</td>
+                <td>{{f.scheduleDateTime[-4:-2]}}:{{f.scheduleDateTime[-2:]}}</td>
+                <td>{{f.estimatedDateTime[-4:-2]}}:{{f.estimatedDateTime[-2:] if f.estimatedDateTime else '-'}}</td>
+                <td class="status-on">{{f.remark or '정상'}}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="no-data">현재 조회된 실시간 도착 정보가 없습니다.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h2>🛫 출발 현황 (Departures)</h2>
+    <table>
+        <thead>
+            <tr><th>편명</th><th>목적지</th><th>예정시간</th><th>변경시간</th><th>현황</th></tr>
+        </thead>
+        <tbody>
+            {% for f in departures %}
+            <tr>
+                <td class="flight-id">{{f.flightId}}</td>
+                <td>{{f.elapsetime}}</td>
+                <td>{{f.scheduleDateTime[-4:-2]}}:{{f.scheduleDateTime[-2:]}}</td>
+                <td>{{f.estimatedDateTime[-4:-2]}}:{{f.estimatedDateTime[-2:] if f.estimatedDateTime else '-'}}</td>
+                <td class="status-on">{{f.remark or '정상'}}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5" class="no-data">현재 조회된 실시간 출발 정보가 없습니다.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div style="text-align: right; font-size: 0.8em; color: #888; margin-top: 20px;">
+        데이터 제공: 공공데이터포털 (인천국제공항공사)<br>
+        관리자: 박종규
+    </div>
+</body>
+</html>
