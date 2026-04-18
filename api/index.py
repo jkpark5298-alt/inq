@@ -7,39 +7,43 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
+    # 환경변수에서 키를 가져오고 앞뒤 공백 제거
     api_key = os.environ.get('FLIGHT_API_KEY', '').strip()
     arrivals = []
     departures = []
 
     if api_key:
         try:
+            # 인증키 언쿼트 처리
             service_key = requests.utils.unquote(api_key)
-            # 데이터를 명시적으로 JSON으로 요청하되, 안 될 경우를 대비합니다.
-            params = {'serviceKey': service_key, 'type': 'json', 'numOfRows': '50'}
+            # 공공데이터포털 화물기 API 주소
+            url_a = "http://apis.data.go.kr/B551177/StatusOfCargoFlights/getArrivalsCargo"
+            url_d = "http://apis.data.go.kr/B551177/StatusOfCargoFlights/getDeparturesCargo"
             
-            # 도착 정보 호출
-            res_a = requests.get("http://apis.data.go.kr/B551177/StatusOfCargoFlights/getArrivalsCargo", params=params, timeout=10)
-            # 출발 정보 호출
-            res_d = requests.get("http://apis.data.go.kr/B551177/StatusOfCargoFlights/getDeparturesCargo", params=params, timeout=10)
+            params = {
+                'serviceKey': service_key,
+                'numOfRows': '30',
+                'pageNo': '1'
+            }
 
-            def parse_data(response):
-                # JSON 응답인 경우
-                if response.status_code == 200 and 'json' in response.headers.get('Content-Type', ''):
-                    return response.json().get('response', {}).get('body', {}).get('items', [])
-                # XML 응답인 경우 (현재 종규님의 상황)
-                elif response.status_code == 200:
+            def fetch_and_parse(url):
+                response = requests.get(url, params=params, timeout=10)
+                items_list = []
+                if response.status_code == 200:
+                    # XML 파싱 시작
                     root = ET.fromstring(response.content)
-                    items = []
-                    for item_node in root.findall('.//item'):
-                        item_dict = {child.tag: child.text for child in item_node}
-                        items.append(item_dict)
-                    return items
-                return []
+                    # 모든 <item> 태그를 찾아서 데이터를 담음
+                    for item in root.findall('.//item'):
+                        data = {}
+                        for child in item:
+                            data[child.tag] = child.text if child.text else ""
+                        items_list.append(data)
+                return items_list
 
-            arrivals = parse_data(res_a)
-            departures = parse_data(res_d)
+            arrivals = fetch_and_parse(url_a)
+            departures = fetch_and_parse(url_d)
             
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"시스템 오류 발생: {e}")
 
     return render_template('index.html', arrivals=arrivals, departures=departures)
