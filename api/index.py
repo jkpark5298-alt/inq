@@ -1,40 +1,45 @@
 from flask import Flask, render_template
 import requests
 import os
+import xml.etree.ElementTree as ET
 
 app = Flask(__name__)
 
 @app.route('/')
 def index():
-    # Vercel Settings에 등록한 인증키 가져오기
     api_key = os.environ.get('FLIGHT_API_KEY', '').strip()
     arrivals = []
     departures = []
 
     if api_key:
         try:
-            # 인증키 디코딩 처리
             service_key = requests.utils.unquote(api_key)
-            # 공공데이터포털 API 파라미터 설정
-            params = {'serviceKey': service_key, 'type': 'json', 'numOfRows': '100'}
-
-            # 1. 화물기 도착 정보 호출
+            # 데이터를 명시적으로 JSON으로 요청하되, 안 될 경우를 대비합니다.
+            params = {'serviceKey': service_key, 'type': 'json', 'numOfRows': '50'}
+            
+            # 도착 정보 호출
             res_a = requests.get("http://apis.data.go.kr/B551177/StatusOfCargoFlights/getArrivalsCargo", params=params, timeout=10)
-            if res_a.status_code == 200:
-                raw_arrivals = res_a.json().get('response', {}).get('body', {}).get('items', [])
-                if not isinstance(raw_arrivals, list): raw_arrivals = [raw_arrivals]
-                # 에어인천(KJ) 편명만 필터링
-                arrivals = [item for item in raw_arrivals if str(item.get('flightId', '')).startswith('KJ')]
-
-            # 2. 화물기 출발 정보 호출
+            # 출발 정보 호출
             res_d = requests.get("http://apis.data.go.kr/B551177/StatusOfCargoFlights/getDeparturesCargo", params=params, timeout=10)
-            if res_d.status_code == 200:
-                raw_departures = res_d.json().get('response', {}).get('body', {}).get('items', [])
-                if not isinstance(raw_departures, list): raw_departures = [raw_departures]
-                # 에어인천(KJ) 편명만 필터링
-                departures = [item for item in raw_departures if str(item.get('flightId', '')).startswith('KJ')]
-        except:
-            # 에러 발생 시 빈 리스트 반환
-            pass
+
+            def parse_data(response):
+                # JSON 응답인 경우
+                if response.status_code == 200 and 'json' in response.headers.get('Content-Type', ''):
+                    return response.json().get('response', {}).get('body', {}).get('items', [])
+                # XML 응답인 경우 (현재 종규님의 상황)
+                elif response.status_code == 200:
+                    root = ET.fromstring(response.content)
+                    items = []
+                    for item_node in root.findall('.//item'):
+                        item_dict = {child.tag: child.text for child in item_node}
+                        items.append(item_dict)
+                    return items
+                return []
+
+            arrivals = parse_data(res_a)
+            departures = parse_data(res_d)
+            
+        except Exception as e:
+            print(f"Error: {e}")
 
     return render_template('index.html', arrivals=arrivals, departures=departures)
