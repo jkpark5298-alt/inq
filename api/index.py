@@ -12,12 +12,12 @@ def get_flight_data(mode="Arrivals"):
     base_url = "http://apis.data.go.kr/B551177/StatusOfCargoFlightsDSOdp"
     endpoint = "/getArrivalsDSOdp" if mode == "Arrivals" else "/getDeparturesDSOdp"
     
-    params = {
-        'serviceKey': SERVICE_KEY,
-        'type': 'json',
-        'airline': '',
-        'numOfRows': '20'
-    }
+    # api/index.py 내용 일부
+params = {
+    'serviceKey': os.environ.get('FLIGHT_API_KEY'),
+    'type': 'json',
+    'numOfRows': '20'
+}
     
     try:
         # 인증키가 없을 경우 예외 처리
