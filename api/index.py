@@ -1,48 +1,47 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>에어인천 모니터링</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-</head>
-<body class="bg-gray-100 min-h-screen p-4">
-    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-xl font-bold text-center mb-6">✈️ 에어인천 실시간 현황</h1>
-        
-        <input type="text" id="searchInput" placeholder="편명 검색 (예: KJ601)" 
-               class="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500">
+from flask import Flask, render_template
+import requests
+import os
 
-        <div class="space-y-4">
-            <h2 class="font-semibold text-lg border-b pb-2">📦 운항 정보</h2>
-            <div id="flightList">
-                {% if arrivals or departures %}
-                    {% for flight in arrivals + departures %}
-                    <div class="flight-card p-4 border rounded-lg mb-3 bg-blue-50">
-                        <div class="flex justify-between items-center">
-                            <span class="font-bold text-blue-700">{{ flight.get('flightId', 'N/A') }}</span>
-                            <span class="text-sm text-gray-500">{{ flight.get('scheduleDateTime', '')[:16] }}</span>
-                        </div>
-                        <div class="text-sm mt-2">
-                            <p>출발지: {{ flight.get('startingAirport', '정보없음') }}</p>
-                            <p>현황: <span class="text-orange-600 font-medium">{{ flight.get('remark', '운항중') }}</span></p>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                    <p class="text-center text-gray-500 py-10">현재 조회된 정보가 없습니다.</p>
-                {% endif %}
-            </div>
-        </div>
-    </div>
+# Vercel이 이 'app'을 찾으려고 합니다. 절대 들여쓰기 하지 마세요!
+app = Flask(__name__)
 
-    <script>
-        document.getElementById('searchInput').addEventListener('input', function(e) {
-            const term = e.target.value.toUpperCase();
-            document.querySelectorAll('.flight-card').forEach(card => {
-                card.style.display = card.innerText.includes(term) ? 'block' : 'none';
-            });
-        });
-    </script>
-</body>
-</html>
+@app.route('/')
+def index():
+    api_key = os.environ.get('FLIGHT_API_KEY', '').strip()
+    arrivals = []
+    departures = []
+
+    if api_key:
+        try:
+            # 공공데이터 API 주소
+            url_arr = "http://apis.data.go.kr/B551177/StatusOfCargoFlights/getArrivalsCargo"
+            url_dep = "http://apis.data.go.kr/B551177/StatusOfCargoFlights/getDeparturesCargo"
+            
+            # 인증키가 인코딩되어 있을 경우를 대비
+            service_key = requests.utils.unquote(api_key)
+            
+            params = {
+                'serviceKey': service_key,
+                'type': 'json',
+                'numOfRows': '100'
+            }
+
+            res_a = requests.get(url_arr, params=params, timeout=10)
+            if res_a.status_code == 200:
+                data = res_a.json()
+                items = data.get('response', {}).get('body', {}).get('items', [])
+                arrivals = items if isinstance(items, list) else ([items] if items else [])
+
+            res_d = requests.get(url_dep, params=params, timeout=10)
+            if res_d.status_code == 200:
+                data = res_d.json()
+                items = data.get('response', {}).get('body', {}).get('items', [])
+                departures = items if isinstance(items, list) else ([items] if items else [])
+        except:
+            pass
+
+    return render_template('index.html', arrivals=arrivals, departures=departures)
+
+# Vercel 환경에서 로컬 테스트용
+if __name__ == "__main__":
+    app.run(debug=True)
