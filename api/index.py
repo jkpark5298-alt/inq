@@ -15,7 +15,7 @@ def get_flight_data(mode="Arrivals"):
     params = {
         'serviceKey': SERVICE_KEY,
         'type': 'json',
-        'airline': 'AIAS',  # 에어인천 항공사 코드
+        'airline': 'AIAS',  KJ
         'numOfRows': '20'
     }
     
