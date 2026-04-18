@@ -1,50 +1,48 @@
-from flask import Flask, render_template
-import requests
-import os
-
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    api_key = os.environ.get('FLIGHT_API_KEY', '').strip()
-    arrivals = []
-    departures = []
-
-    if api_key:
-        # 인증키 뒤에 붙는 특수문자 문제를 방지하기 위해 쌩(raw) 키를 사용하거나
-        # 필요한 경우 requests가 알아서 인코딩하도록 맡깁니다.
-        arrival_url = "http://apis.data.go.kr/B551177/StatusOfCargoFlights/getArrivalsCargo"
-        departure_url = "http://apis.data.go.kr/B551177/StatusOfCargoFlights/getDeparturesCargo"
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>에어인천 모니터링</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h1 class="text-xl font-bold text-center mb-6">✈️ 에어인천 실시간 현황</h1>
         
-        params = {
-            'serviceKey': requests.utils.unquote(api_key), # 키 인코딩 문제 방지
-            'type': 'json',
-            'airline': '', 
-            'numOfRows': '50'
-        }
+        <input type="text" id="searchInput" placeholder="편명 검색 (예: KJ601)" 
+               class="w-full p-3 border border-gray-300 rounded-lg mb-6 focus:outline-none focus:ring-2 focus:ring-blue-500">
 
-        try:
-            # 도착 정보 조회
-            res_arr = requests.get(arrival_url, params=params, timeout=10)
-            if res_arr.status_code == 200:
-                data = res_arr.json()
-                body = data.get('response', {}).get('body', {})
-                items = body.get('items', [])
-                # 데이터가 없을 때(None)나 딕셔너리일 때를 모두 리스트로 변환
-                if not items: arrivals = []
-                elif isinstance(items, dict): arrivals = [items]
-                else: arrivals = items
+        <div class="space-y-4">
+            <h2 class="font-semibold text-lg border-b pb-2">📦 운항 정보</h2>
+            <div id="flightList">
+                {% if arrivals or departures %}
+                    {% for flight in arrivals + departures %}
+                    <div class="flight-card p-4 border rounded-lg mb-3 bg-blue-50">
+                        <div class="flex justify-between items-center">
+                            <span class="font-bold text-blue-700">{{ flight.get('flightId', 'N/A') }}</span>
+                            <span class="text-sm text-gray-500">{{ flight.get('scheduleDateTime', '')[:16] }}</span>
+                        </div>
+                        <div class="text-sm mt-2">
+                            <p>출발지: {{ flight.get('startingAirport', '정보없음') }}</p>
+                            <p>현황: <span class="text-orange-600 font-medium">{{ flight.get('remark', '운항중') }}</span></p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-center text-gray-500 py-10">현재 조회된 정보가 없습니다.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
 
-            # 출발 정보 조회
-            res_dep = requests.get(departure_url, params=params, timeout=10)
-            if res_dep.status_code == 200:
-                data = res_dep.json()
-                body = data.get('response', {}).get('body', {})
-                items = body.get('items', [])
-                if not items: departures = []
-                elif isinstance(items, dict): departures = [items]
-                else: departures = items
-        except Exception:
-            pass 
-
-    return render_template('index.html', arrivals=arrivals, departures=departures)
+    <script>
+        document.getElementById('searchInput').addEventListener('input', function(e) {
+            const term = e.target.value.toUpperCase();
+            document.querySelectorAll('.flight-card').forEach(card => {
+                card.style.display = card.innerText.includes(term) ? 'block' : 'none';
+            });
+        });
+    </script>
+</body>
+</html>
